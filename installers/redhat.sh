@@ -9,7 +9,7 @@ else
         DOWNLOAD_BIN="curl -s -L "
     else
         echo "No download utility found! Please make sure either wget or curl are installed on this system."
-	exit 1
+        exit 1
     fi
 fi
 ${DOWNLOAD_BIN} ${UPDATE_URL}/installers/common.sh > /tmp/msmcommon.sh
