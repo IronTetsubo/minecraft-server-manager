@@ -1,5 +1,18 @@
 UPDATE_URL="https://raw.github.com/marcuswhybrow/minecraft-server-manager/master"
-wget -q ${UPDATE_URL}/installers/common.sh -O /tmp/msmcommon.sh
+
+which wget >/dev/null 2>&1
+if [[ $? != 1 ]]; then
+    DOWNLOAD_BIN="wget -q -O - "
+else
+    which curl >/dev/null 2>&1
+    if [[ $? != 1 ]]; then
+        DOWNLOAD_BIN="curl -s -L "
+    else
+        echo "No download utility found! Please make sure either wget or curl are installed on this system."
+	exit 1
+    fi
+fi
+${DOWNLOAD_BIN} ${UPDATE_URL}/installers/common.sh > /tmp/msmcommon.sh
 source /tmp/msmcommon.sh && rm -f /tmp/msmcommon.sh
 
 function update_system_packages() {

@@ -45,7 +45,7 @@ function update_system_packages() {
     install_error "No function definition for update_system_packages"
 }
 
-# Installs additional dependencies (screen, rsync, zip, wget) using system package manager
+# Installs additional dependencies (screen, rsync, zip) using system package manager
 function install_dependencies() {
     # OVERLOAD THIS
     install_error "No function definition for install_dependencies"
@@ -74,16 +74,16 @@ function download_latest_files() {
     fi
 
     install_log "Downloading latest MSM configuration file"
-    sudo wget ${UPDATE_URL}/msm.conf \
-        -O "$dl_dir/msm.conf.orig" || install_error "Couldn't download configuration file"
+    sudo ${DOWNLOAD_BIN} ${UPDATE_URL}/msm.conf \
+        > "$dl_dir/msm.conf.orig" || install_error "Couldn't download configuration file"
 
     install_log "Downloading latest MSM cron file"
-    sudo wget ${UPDATE_URL}/cron/msm \
-        -O "$dl_dir/msm.cron.orig" || install_error "Couldn't download cron file"
+    sudo ${DOWNLOAD_BIN} ${UPDATE_URL}/cron/msm \
+        > "$dl_dir/msm.cron.orig" || install_error "Couldn't download cron file"
 
     install_log "Downloading latest MSM version"
-    sudo wget ${UPDATE_URL}/init/msm \
-        -O "$dl_dir/msm.init.orig" || install_error "Couldn't download init file"
+    sudo ${DOWNLOAD_BIN} ${UPDATE_URL}/init/msm \
+        > "$dl_dir/msm.init.orig" || install_error "Couldn't download init file"
 }
 
 # Patches msm.conf and cron job to use specified username and directory
