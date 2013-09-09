@@ -283,6 +283,34 @@ get_latest_file() {
 	RETURN="$best_file"
 }
 
+# Sets the right binary + options to use for downloading
+# Chooses between wget/curl, and if neither is found, error out.
+# RETURN: The binary + options to use.
+set_download_bin() {
+	unset RETURN
+
+	local download_bin=""
+	which wget >/dev/null 2>&1
+	if [[ $? != 1 ]]; then
+		# test wget for --trust-server-names option
+		local wget_opts="--trust-server-names"
+		wget $wget_opts >/dev/null 2>&1
+		if [[ $? != 1 ]]; then
+			wget_opts=""
+		fi
+
+		download_bin="wget -q --no-check-certificate $wget_opts"
+	else
+		which curl >/dev/null 2>&1
+		if [[ $? != 1 ]]; then
+			download_bin="curl -s -L -k -O "
+		else
+			error_exit FATAL_ERROR "No download utility found! Please make sure either wget or curl are installed on this system."
+		fi
+	fi
+	RETURN="$download_bin"
+}
+
 # Returns the current time as a UNIX timestamp (in seconds since 1970)
 now() {
 	date +%s
@@ -1064,32 +1092,27 @@ jargroup_getlatest() {
 					error_exit FILE_NOT_FOUND "$error"
 				fi
 
-				# test wget for --trust-server-names option
-				local wget_opts="--trust-server-names"
-				wget $wget_opts >/dev/null 2>&1
-				if [[ $? != 1 ]]; then
-				    wget_opts=""
-				fi
+				set_download_bin
+				local download_bin="$RETURN"
 
 				# If target contains the word 'minecraft' check JSON version file for correct filename
 				local target="$(as_user "$SETTINGS_USERNAME" "cat $SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_TARGET")"
 				if [[ "$target" == "minecraft" ]]; then
 					printf "Checking minecraft version JSON... "
 					local versions_url="http://s3.amazonaws.com/Minecraft.Download/versions/versions.json"
-					local versions_file="/tmp/minecraft_versions.json"
-					as_user "$SETTINGS_USERNAME" "wget --quiet $wget_opts --no-check-certificate -O '$versions_file' '$versions_url'"
+					local versions_file="$SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_DOWNLOAD_DIR/versions.json"
+					as_user "$SETTINGS_USERNAME" "cd $SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_DOWNLOAD_DIR; \
+						$download_bin '$versions_url'"
 					local latest_version=$(as_user "$SETTINGS_USERNAME" "cat '$versions_file' | egrep '^[[:space:]]*\"release\"' | cut -d':' -f2 | egrep -o '[[:digit:].]*'")
+					rm '$versions_file'
 
 					if [[ -n "$latest_version" ]]; then
-						local jar_url="https://s3.amazonaws.com/Minecraft.Download/versions/$latest_version/minecraft_server.$latest_version.jar"
+						target="https://s3.amazonaws.com/Minecraft.Download/versions/$latest_version/minecraft_server.$latest_version.jar"
 					fi
 				fi
 
-				if [[ -n "$jar_url" ]]; then
-					as_user "$SETTINGS_USERNAME" "wget --quiet $wget_opts --no-check-certificate --directory-prefix='$SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_DOWNLOAD_DIR' '$jar_url'"
-				else
-					as_user "$SETTINGS_USERNAME" "wget --quiet $wget_opts --no-check-certificate --input-file='$SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_TARGET' --directory-prefix='$SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_DOWNLOAD_DIR'"
-				fi
+				as_user "$SETTINGS_USERNAME" "cd $SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_DOWNLOAD_DIR; \
+					$download_bin '$target'"
 				echo "Done."
 
 				local num_files="$(as_user "$SETTINGS_USERNAME" "ls -1 '$SETTINGS_JAR_STORAGE_PATH/$1/$SETTINGS_JARGROUP_DOWNLOAD_DIR' | wc -l")"
@@ -2118,8 +2141,10 @@ command_update() {
 	# $1: The file name to download
 	download_file() {
 		local dir_name="$(dirname "${output_dir}/${1}")"
+		set_download_bin
+		local download_bin="$RETURN"
 		as_user "${SETTINGS_USERNAME}" "mkdir -p \"${dir_name}\""
-		as_user "${SETTINGS_USERNAME}" "wget --quiet --no-check-certificate ${SETTINGS_UPDATE_URL}/$1 -O ${output_dir}/$1"
+		as_user "${SETTINGS_USERNAME}" "cd ${dir_name}; $download_bin ${SETTINGS_UPDATE_URL}/$1"
 	}
 
 	# $1: The newly download file (relative to download dir)
