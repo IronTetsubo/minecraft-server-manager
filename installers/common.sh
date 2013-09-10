@@ -54,16 +54,16 @@ function install_dependencies() {
 # Verifies existence of or adds user for Minecraft server (default "minecraft")
 function add_minecraft_user() {
     install_log "Creating default user '${msm_user}'"
-    sudo useradd ${msm_user} \
-        --home /opt/msm
-}
-
-# Verifies existence and permissions of msm server directory (default /opt/msm)
-function create_msm_directories() {
-    install_log "Creating MSM directories"
     if [ ! -d "$msm_dir" ]; then
         sudo mkdir -p "$msm_dir" || install_error "Couldn't create directory '$msm_dir'"
     fi
+    sudo useradd ${msm_user} \
+        --home ${msm_dir}
+}
+
+# Verifies existence and permissions of msm server directory (default /opt/msm)
+function update_msm_permissions() {
+    install_log "Updating MSM permissions"
     sudo chown -R $msm_user:$msm_user "$msm_dir" || install_error "Couldn't change file ownership for '$msm_dir'"
 }
 
@@ -155,7 +155,7 @@ function install_msm() {
     add_minecraft_user
     update_system_packages
     install_dependencies
-    create_msm_directories
+    update_msm_permissions
     download_latest_files
     patch_latest_files
     install_config
