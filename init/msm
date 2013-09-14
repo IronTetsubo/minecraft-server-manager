@@ -421,12 +421,13 @@ world_backup() {
 # $1: The ID of the world
 world_activate() {
 	server_property "${WORLD_SERVER_ID[$1]}" USERNAME
+	server_property "${WORLD_SERVER_ID[$1]}" WORLD_STORAGE_PATH
 	world_property "$1" INACTIVE_PATH
 	world_property "$1" ACTIVE_PATH
 
 	if [ -d "${WORLD_INACTIVE_PATH[$1]}" ]; then
 		echo -n "Moving world \"${WORLD_NAME[$1]}\" to the active worldstorage directory... "
-		local new_path="${WORLD_ACTIVE_PATH[$1]}"
+		local new_path="${SERVER_WORLD_STORAGE_PATH[${WORLD_SERVER_ID[$1]}]}"
 		as_user "${SERVER_USERNAME[${WORLD_SERVER_ID[$1]}]}" "mkdir -p \"$new_path\" && mv \"${WORLD_INACTIVE_PATH[$1]}\" \"$new_path\""
 		echo "Done."
 	else
@@ -442,6 +443,7 @@ world_activate() {
 # $1: The ID of the world
 world_deactivate() {
 	server_property "${WORLD_SERVER_ID[$1]}" USERNAME
+	server_property "${WORLD_SERVER_ID[$1]}" WORLD_STORAGE_INACTIVE_PATH
 	world_property "$1" ACTIVE_PATH
 	world_property "$1" INACTIVE_PATH
 	world_property "$1" PATH
@@ -451,7 +453,7 @@ world_deactivate() {
 	else
 		if [ -d "${WORLD_ACTIVE_PATH[$1]}" ]; then
 			echo -n "Moving world \"${WORLD_NAME[$1]}\" to the inactive worldstorage directory... "
-			local new_path="${WORLD_INACTIVE_PATH[$1]}"
+			local new_path="${SERVER_WORLD_STORAGE_INACTIVE_PATH[${WORLD_SERVER_ID[$1]}]}"
 			as_user "${SERVER_USERNAME[${WORLD_SERVER_ID[$1]}]}" "mkdir -p \"$new_path\" && mv \"${WORLD_PATH[$1]}\" \"$new_path\""
 			echo "Done."
 		else
@@ -1270,6 +1272,7 @@ server_create() {
 		manager_property DEFAULT_BANNED_IPS_PATH
 		manager_property DEFAULT_BANNED_PLAYERS_PATH
 		manager_property DEFAULT_OPS_PATH
+		manager_property DEFAULT_OPS_LIST
 		manager_property SERVER_PROPERTIES
 		manager_property DEFAULT_WORLD_STORAGE_PATH
 		manager_property JAR_STORAGE_PATH
@@ -1283,6 +1286,14 @@ server_create() {
 			as_user "$SETTINGS_USERNAME" "touch '$SETTINGS_SERVER_STORAGE_PATH/$1/$SETTINGS_DEFAULT_BANNED_IPS_PATH'"
 			as_user "$SETTINGS_USERNAME" "touch '$SETTINGS_SERVER_STORAGE_PATH/$1/$SETTINGS_DEFAULT_BANNED_PLAYERS_PATH'"
 			as_user "$SETTINGS_USERNAME" "touch '$SETTINGS_SERVER_STORAGE_PATH/$1/$SETTINGS_DEFAULT_OPS_PATH'"
+
+			# Set default ops users as appropriate
+			if [ ! -z "$SETTINGS_DEFAULT_OPS_LIST" ]; then
+				IFS=","; for default_ops_user in $SETTINGS_DEFAULT_OPS_LIST; do
+					as_user "$SETTINGS_USERNAME" "echo $default_ops_user | tr -d ' ' >> '$SETTINGS_SERVER_STORAGE_PATH/$1/$SETTINGS_DEFAULT_OPS_PATH'"
+				done
+			fi
+
 			as_user "$SETTINGS_USERNAME" "touch '$SETTINGS_SERVER_STORAGE_PATH/$1/$SETTINGS_SERVER_PROPERTIES'"
 			as_user "$SETTINGS_USERNAME" "mkdir -p '$SETTINGS_SERVER_STORAGE_PATH/$1/$SETTINGS_DEFAULT_WORLD_STORAGE_PATH'"
 			as_user "$SETTINGS_USERNAME" "echo \"MSM requires all your worlds be moved into this directory.\" > '$SETTINGS_SERVER_STORAGE_PATH/$1/$SETTINGS_DEFAULT_WORLD_STORAGE_PATH/readme.txt'"
@@ -1971,8 +1982,9 @@ manager_stop_all_servers_now() {
 	# Stop all servers at the same time
 	for ((server=0; server<${NUM_SERVERS}; server++)); do
 		if server_is_running "$server"; then
-			was_running[$server]="true"
 			any_running="true"
+			was_running[$server]="true"
+
 			echo "Server \"${SERVER_NAME[$server]}\" was running, now stopping."
 			server_eval "$server" "stop"
 		else
@@ -2076,7 +2088,7 @@ command_stop_now() {
 # Restarts all servers
 command_restart() {
 	echo "Stopping servers:"
-	command_stop
+	manager_stop_all_servers "restart"
 	
 	echo "Starting servers:"
 	command_start
@@ -2085,7 +2097,7 @@ command_restart() {
 # Restarts all servers without delay
 command_restart_now() {
 	echo "Stopping servers:"
-	command_stop_now
+	manager_stop_all_servers_now
 	
 	echo "Starting servers:"
 	command_start
@@ -3249,6 +3261,7 @@ register_settings() {
 	register_server_setting BANNED_PLAYERS_PATH "banned-players.txt"
 	register_server_setting BANNED_IPS_PATH "banned-ips.txt"
 	register_server_setting OPS_PATH "ops.txt"
+	register_server_setting OPS_LIST ""
 	register_server_setting JAR_PATH "server.jar"
 
 	register_server_setting FLAG_ACTIVE_PATH "active"
