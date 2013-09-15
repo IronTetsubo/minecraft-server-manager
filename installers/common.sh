@@ -81,6 +81,10 @@ function download_latest_files() {
     sudo ${DOWNLOAD_BIN} ${UPDATE_URL}/cron/msm \
         > "$dl_dir/msm.cron.orig" || install_error "Couldn't download cron file"
 
+    install_log "Downloading latest MSM systemd service file"
+    sudo ${DOWNLOAD_BIN} ${UPDATE_URL}/init/msm.service \
+        > "$dl_dir/msm.service.orig" || install_error "Couldn't download systemd service file"
+
     install_log "Downloading latest MSM version"
     sudo ${DOWNLOAD_BIN} ${UPDATE_URL}/init/msm \
         > "$dl_dir/msm.init.orig" || install_error "Couldn't download init file"
@@ -98,6 +102,10 @@ function patch_latest_files() {
     install_log "Patching MSM cron file"
     sudo awk '{ if ($0 !~ /^#/) sub(/minecraft/, "'$msm_user'"); print }' \
         "$dl_dir/msm.cron.orig" >"$dl_dir/msm.cron"
+
+    # patch systemd service file
+    install_log "Patching MSM systemd service file"
+    sudo cp "$dl_dir/msm.service.orig" "$dl_dir/msm.service"
 
     # patch init file
     install_log "Patching MSM init file"

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daemon to start/manage Minecraft servrs.
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/msm start
+ExecStop=/usr/local/bin/msm stop
+Type=forking
+
+[Install]
+WantedBy=multi-user.target
