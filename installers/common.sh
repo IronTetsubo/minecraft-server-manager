@@ -1,3 +1,4 @@
+UPDATE_URL="https://raw.github.com/marcuswhybrow/minecraft-server-manager/master"
 msm_dir="/opt/msm"
 msm_user="minecraft"
 dl_dir="$(mktemp -d -t msm-XXX)"
@@ -15,6 +16,40 @@ function install_error() {
 
 ### NOTE: all the below functions are overloadable for system-specific installs
 ### NOTE: some of the below functions MUST be overloaded due to system-specific installs
+
+# Determines the right way to download the required files from the internet.
+function set_download_bin() {
+    which wget >/dev/null 2>&1
+    if [[ $? != 1 ]]; then
+        DOWNLOAD_BIN="wget -q -O - "
+    else
+        which curl >/dev/null 2>&1
+        if [[ $? != 1 ]]; then
+            DOWNLOAD_BIN="curl -s -L "
+        else
+            install_error "No download utility found! Please make sure either wget or curl are installed on this system."
+        fi
+    fi
+}
+
+# Determines the distro being used, and thus which set of override functions to fetch.
+function set_distro_override() {
+    which yum >/dev/null 2>&1
+    if [[ $? != 1 ]]; then
+        # Use redhat.sh
+	DISTRO_OVERRIDE="redhat.sh"
+    else
+	# Use debian.sh
+	DISTRO_OVERRIDE="debian.sh"
+    fi
+}
+
+# Downloads the appropriate distro file and sources it.
+function source_distro_override() {
+    sudo ${DOWNLOAD_BIN} ${UPDATE_URL}/installers/${DISTRO_OVERRIDE} \
+        > "$dl_dir/${DISTRO_OVERRIDE}" || install_error "Couldn't download distro override file"
+    source $dl_dir/${DISTRO_OVERRIDE}
+}
 
 function config_installation() {
     install_log "Configure installation"
@@ -160,6 +195,9 @@ function install_complete() {
 
 function install_msm() {
     config_installation
+    set_download_bin
+    set_distro_override
+    source_distro_override
     add_minecraft_user
     update_system_packages
     install_dependencies
@@ -174,3 +212,5 @@ function install_msm() {
     setup_jargroup
     install_complete
 }
+
+install_msm

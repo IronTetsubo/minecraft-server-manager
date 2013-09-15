@@ -1,19 +1,4 @@
-UPDATE_URL="https://raw.github.com/marcuswhybrow/minecraft-server-manager/master"
-
-which wget >/dev/null 2>&1
-if [[ $? != 1 ]]; then
-    DOWNLOAD_BIN="wget -q -O - "
-else
-    which curl >/dev/null 2>&1
-    if [[ $? != 1 ]]; then
-        DOWNLOAD_BIN="curl -s -L "
-    else
-        echo "No download utility found! Please make sure either wget or curl are installed on this system."
-        exit 1
-    fi
-fi
-${DOWNLOAD_BIN} ${UPDATE_URL}/installers/common.sh > /tmp/msmcommon.sh
-source /tmp/msmcommon.sh && rm -f /tmp/msmcommon.sh
+# Redhat (Fedora/RHEL) specific install function overrides.
 
 function update_system_packages() {
     install_log "Updating sources"
@@ -25,7 +10,6 @@ function install_dependencies() {
     sudo yum install screen rsync zip || install_error "Couldn't install dependencies"
 }
 
-# Installs init script into /etc/init.d
 function install_init() {
     install_log "Installing MSM init file"
     which systemd >/dev/null 2>&1
@@ -51,5 +35,3 @@ function enable_init() {
         sudo chkconfig --add msm       
     fi
 }
-
-install_msm
